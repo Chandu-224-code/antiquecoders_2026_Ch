@@ -14,6 +14,11 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env if present
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
 FRONTEND_DIR = BASE_DIR / 'frontend'
 
 

@@ -8,6 +8,7 @@ training/data/processed/*
 training/models/*
 !training/models/.gitkeep
 backend/.env
+.env
 *.pyc
 __pycache__/
 backend_output.txt
