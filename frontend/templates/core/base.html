@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" x-data="themeManager()" x-init="initTheme()" :class="{ 'dark': isDark }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AntiqueCoder{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for Theme state management -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#000000', // Deep black
+                            surface: '#2a2a2a', // Grey combination
+                            text: '#f0f0f0',
+                            border: '#333333',
+                            input: '#1e1e1e'
+                        },
+                        light: {
+                            bg: '#f8f5f0', // Cream mix
+                            surface: '#ffffff', // White mix
+                            text: '#1a1a1a',
+                            border: '#e5e5e5',
+                            input: '#ffffff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        [x-cloak] { display: none !important; }
+    </style>
+    <!-- Prevent FOUC across all browsers -->
+    <script>
+        try {
+            var storedTheme = localStorage.getItem('theme');
+            if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        } catch (e) {}
+    </script>
+</head>
+<body class="bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text font-sans antialiased transition-colors duration-200 overflow-hidden">
+    <div class="h-screen flex w-full">
+        <!-- Sidebar Area -->
+        <aside x-show="sidebarOpen"
+               x-transition:enter="transition-all ease-in-out duration-300 transform"
+               x-transition:enter-start="-translate-x-full opacity-0 max-w-0"
+               x-transition:enter-end="translate-x-0 opacity-100 max-w-[260px]"
+               x-transition:leave="transition-all ease-in-out duration-300 transform"
+               x-transition:leave-start="translate-x-0 opacity-100 max-w-[260px]"
+               x-transition:leave-end="-translate-x-full opacity-0 max-w-0"
+               class="w-[260px] flex-shrink-0 bg-[#f9f9f9] dark:bg-[#171717] flex flex-col h-full overflow-y-auto border-r border-light-border dark:border-dark-border" style="display: none;" x-cloak>
+            {% block sidebar %}{% endblock %}
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="flex-1 flex flex-col h-full relative min-w-0 transition-all duration-300">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        function themeManager() {
+            return {
+                theme: localStorage.getItem('theme') || 'system',
+                isDark: false,
+                sidebarOpen: window.innerWidth > 768,
+                
+                toggleSidebar() {
+                    this.sidebarOpen = !this.sidebarOpen;
+                },
+                
+                initTheme() {
+                    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                    
+                    const updateTheme = () => {
+                        if (this.theme === 'dark') {
+                            this.isDark = true;
+                        } else if (this.theme === 'light') {
+                            this.isDark = false;
+                        } else {
+                            // system
+                            this.isDark = mediaQuery.matches;
+                        }
+                    };
+                    
+                    updateTheme();
+                    
+                    const handleMediaChange = (e) => {
+                        if (this.theme === 'system') {
+                            this.isDark = e.matches;
+                        }
+                    };
+                    
+                    // Cross-browser media query listener for older Safari/IE
+                    if (mediaQuery.addEventListener) {
+                        mediaQuery.addEventListener('change', handleMediaChange);
+                    } else if (mediaQuery.addListener) {
+                        mediaQuery.addListener(handleMediaChange);
+                    }
+                    
+                    this.$watch('theme', val => {
+                        localStorage.setItem('theme', val);
+                        updateTheme();
+                    });
+                },
+                
+                setTheme(newTheme) {
+                    this.theme = newTheme;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

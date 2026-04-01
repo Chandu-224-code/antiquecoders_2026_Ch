@@ -1,0 +1,26 @@
+{
+  "name": "code_verse",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tailwindcss -i ./static/src/input.css -o ./static/css/output.css --minify",
+    "dev": "tailwindcss -i ./static/src/input.css -o ./static/css/output.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chandu-224-code/code_verse.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Chandu-224-code/code_verse/issues"
+  },
+  "homepage": "https://github.com/Chandu-224-code/code_verse#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
