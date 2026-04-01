@@ -1,0 +1,16 @@
+node_modules/
+frontend/node_modules/
+training/data/raw/*
+!training/data/raw/.gitkeep
+training/data/processed/*
+!training/data/processed/.gitkeep
+training/models/*
+!training/models/.gitkeep
+backend/.env
+*.pyc
+__pycache__/
+backend_output.txt
+django_out.txt
+server_log.txt
+server_output.txt
+server_output_utf8.txt
