@@ -43,6 +43,42 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style type="text/tailwindcss">
         [x-cloak] { display: none !important; }
+        
+        /* Sidebar scrollbar styling - positioned to the right */
+        aside::-webkit-scrollbar {
+            width: 12px;
+        }
+        
+        aside::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        aside::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 6px;
+        }
+        
+        aside::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+        
+        .dark aside::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }
+        
+        .dark aside::-webkit-scrollbar-thumb:hover {
+            background: #6b7684;
+        }
+        
+        /* Firefox scrollbar */
+        aside {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db transparent;
+        }
+        
+        .dark aside {
+            scrollbar-color: #4b5563 transparent;
+        }
     </style>
     <!-- Prevent FOUC across all browsers -->
     <script>

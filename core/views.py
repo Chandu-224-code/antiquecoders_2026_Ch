@@ -18,6 +18,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.http import HttpResponse
+
+import logging
+logger = logging.getLogger(__name__)
 
 from plant_health.services import diagnose_uploaded_image, format_prediction_for_chat
 
@@ -212,13 +216,24 @@ def home(request):
     if request.method == "POST":
         prompt = request.POST.get("prompt", "").strip()
         uploaded_image = request.FILES.get("image")
+        
+        logger.info(f"POST request: prompt={bool(prompt)}, image={bool(uploaded_image)}")
 
         if uploaded_image:
-            diagnosis = diagnose_uploaded_image(uploaded_image)
-            response = format_prediction_for_chat(diagnosis)
-            if not prompt:
-                prompt = f"Uploaded image: {uploaded_image.name}"
-            ChatQuery.objects.create(session_key=session_key, prompt=prompt, response=response)
+            logger.info(f"Processing image: {uploaded_image.name} (size: {uploaded_image.size} bytes)")
+            try:
+                diagnosis = diagnose_uploaded_image(uploaded_image)
+                logger.info(f"Diagnosis result: {diagnosis.get('status')}")
+                response = format_prediction_for_chat(diagnosis)
+                if not prompt:
+                    prompt = f"Uploaded image: {uploaded_image.name}"
+                ChatQuery.objects.create(session_key=session_key, prompt=prompt, response=response)
+                logger.info(f"ChatQuery created successfully")
+            except Exception as exc:
+                logger.error(f"Error processing image: {exc}", exc_info=True)
+                error_message = f"Error processing image: {str(exc)}"
+                ChatQuery.objects.create(session_key=session_key, prompt=f"Uploaded image: {uploaded_image.name}", response=error_message)
+                messages.error(request, error_message)
         elif prompt:
             response = _build_response(prompt)
             ChatQuery.objects.create(session_key=session_key, prompt=prompt, response=response)

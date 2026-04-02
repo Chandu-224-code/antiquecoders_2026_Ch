@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ from model.constants import (
     VALIDATION_THRESHOLD,
 )
 from model.network import build_classifier
+
+logger = logging.getLogger(__name__)
 
 
 class ModelNotReadyError(RuntimeError):
@@ -150,16 +153,21 @@ class PlantDiseasePredictor:
         model.to(self.device)
         model.eval()
         return model, class_names
-        model.to(self.device)
-        model.eval()
-        return model, class_names
 
-    def _get_validation_bundle(self) -> tuple[torch.nn.Module, list[str]]:
+    def _get_validation_bundle(self) -> tuple[torch.nn.Module, list[str]] | None:
+        """Load validation model. Returns None if model is not available."""
         if self._validation_bundle is None:
-            self._validation_bundle = self._load_bundle(
-                self.validation_path,
-                list(VALIDATION_CLASS_NAMES),
-            )
+            try:
+                self._validation_bundle = self._load_bundle(
+                    self.validation_path,
+                    list(VALIDATION_CLASS_NAMES),
+                )
+                logger.info("Validation model loaded successfully")
+            except ModelNotReadyError as exc:
+                logger.warning(f"Validation model not available: {exc}. Disease detection will proceed without plant validation.")
+                # Return None to indicate validation is not available
+                # The system will skip plant/non-plant validation and proceed with disease detection
+                return None
         return self._validation_bundle
 
     def _get_disease_bundle(self) -> tuple[torch.nn.Module, list[str]]:
@@ -238,30 +246,41 @@ class PlantDiseasePredictor:
 
         image_tensor = self._prepare_tensor(image)
 
-        validation_model, validation_class_names = self._get_validation_bundle()
-        validation_probs = self._predict_probabilities(validation_model, image_tensor)
-        validation_top = self._top_predictions(
-            validation_probs,
-            validation_class_names,
-            topk=min(topk, len(validation_class_names)),
-        )
-        validation_best = validation_top[0]
-
+        validation_bundle = self._get_validation_bundle()
         validation_payload = {
-            "label": validation_best["label"],
-            "code": validation_best["code"],
-            "confidence": validation_best["score"],
-            "top_predictions": validation_top,
+            "status": "skipped",
+            "reason": "Validation model not available",
+            "note": "Plant classification validation is not available. Disease detection will proceed."
         }
+        
+        # Only perform validation if model is available
+        if validation_bundle is not None:
+            validation_model, validation_class_names = validation_bundle
+            validation_probs = self._predict_probabilities(validation_model, image_tensor)
+            validation_top = self._top_predictions(
+                validation_probs,
+                validation_class_names,
+                topk=min(topk, len(validation_class_names)),
+            )
+            validation_best = validation_top[0]
 
-        if validation_best["code"] == "non_plant" and validation_best["score"] >= self.validation_threshold:
-            return {
-                "status": "invalid_subject",
-                "message": "Please upload only plant leaf images.",
-                "reason": "The uploaded image does not appear to be a plant image.",
-                "quality": quality,
-                "validation": validation_payload,
+            validation_payload = {
+                "label": validation_best["label"],
+                "code": validation_best["code"],
+                "confidence": validation_best["score"],
+                "top_predictions": validation_top,
             }
+
+            # Reject non-plant images only if validation model is available
+            if validation_best["code"] == "non_plant" and validation_best["score"] >= self.validation_threshold:
+                logger.warning(f"Image rejected as non-plant with confidence {validation_best['score']}")
+                return {
+                    "status": "invalid_subject",
+                    "message": "Please upload only plant leaf images.",
+                    "reason": "The uploaded image does not appear to be a plant image.",
+                    "quality": quality,
+                    "validation": validation_payload,
+                }
 
         disease_model, disease_class_names = self._get_disease_bundle()
         disease_probs = self._predict_probabilities(disease_model, image_tensor)

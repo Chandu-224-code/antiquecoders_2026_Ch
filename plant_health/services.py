@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from typing import Any
 
@@ -9,6 +10,8 @@ from PIL import Image, UnidentifiedImageError
 
 from model.inference import ModelNotReadyError, PlantDiseasePredictor
 from plant_health.knowledge import get_disease_guidance
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -51,17 +54,29 @@ def enrich_prediction(prediction: dict[str, Any]) -> dict[str, Any]:
 
 def diagnose_uploaded_image(uploaded_file) -> dict[str, Any]:
     try:
+        # Ensure file pointer is at the beginning
+        uploaded_file.seek(0)
+        logger.info(f"Opening image file: {uploaded_file.name}")
         with Image.open(uploaded_file) as image:
+            logger.info(f"Image opened successfully: {image.size}")
             prediction = get_predictor().predict_image(image.convert("RGB"))
+            logger.info(f"Prediction completed: {prediction.get('status')}")
+            
+            # Add note about validation status
+            validation_info = prediction.get("validation", {})
+            if validation_info.get("status") == "skipped":
+                logger.warning("Plant validation was skipped - validation model not available")
     except UnidentifiedImageError:
+        logger.error("File is not a readable image")
         return {
             "status": "error",
             "message": "The uploaded file is not a readable image.",
         }
     except ModelNotReadyError as exc:
+        logger.error(f"Disease model not ready: {exc}")
         return {
             "status": "model_not_ready",
-            "message": "The upload gate or wheat diagnosis models are not trained yet.",
+            "message": "The disease detection model is not trained yet.",
             "reason": str(exc),
         }
 
