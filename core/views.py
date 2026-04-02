@@ -238,11 +238,13 @@ def home(request):
                 response = format_prediction_for_chat(diagnosis)
                 if not prompt:
                     prompt = f"Uploaded image: {uploaded_image.name}"
+                uploaded_image.seek(0)
                 ChatQuery.objects.create(session_key=current_chat_id, prompt=prompt, response=response, image=uploaded_image)
                 logger.info(f"ChatQuery created successfully")
             except Exception as exc:
                 logger.error(f"Error processing image: {exc}", exc_info=True)
                 error_message = f"Error processing image: {str(exc)}"
+                uploaded_image.seek(0)
                 ChatQuery.objects.create(session_key=current_chat_id, prompt=f"Uploaded image: {uploaded_image.name}", response=error_message, image=uploaded_image)
                 messages.error(request, error_message)
         elif prompt:

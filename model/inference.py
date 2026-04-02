@@ -188,7 +188,7 @@ class PlantDiseasePredictor:
             issues.append("too dark")
         elif brightness_score > MAX_BRIGHTNESS_SCORE:
             issues.append("too bright")
-        if min(width, height) < INPUT_SIZE:
+        if min(width, height) < 64:
             issues.append("low resolution")
 
         return {

@@ -44,40 +44,40 @@
     <style type="text/tailwindcss">
         [x-cloak] { display: none !important; }
         
-        /* Sidebar scrollbar styling - positioned to the right */
-        aside::-webkit-scrollbar {
-            width: 12px;
+        /* Custom scrollbar styling */
+        .overflow-y-auto::-webkit-scrollbar {
+            width: 6px;
         }
         
-        aside::-webkit-scrollbar-track {
+        .overflow-y-auto::-webkit-scrollbar-track {
             background: transparent;
         }
         
-        aside::-webkit-scrollbar-thumb {
+        .overflow-y-auto::-webkit-scrollbar-thumb {
             background: #d1d5db;
             border-radius: 6px;
         }
         
-        aside::-webkit-scrollbar-thumb:hover {
-            background: #999;
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
         }
         
-        .dark aside::-webkit-scrollbar-thumb {
-            background: #4b5563;
+        .dark .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #3f3f46;
         }
         
-        .dark aside::-webkit-scrollbar-thumb:hover {
-            background: #6b7684;
+        .dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
         }
         
         /* Firefox scrollbar */
-        aside {
+        .overflow-y-auto {
             scrollbar-width: thin;
             scrollbar-color: #d1d5db transparent;
         }
         
-        .dark aside {
-            scrollbar-color: #4b5563 transparent;
+        .dark .overflow-y-auto {
+            scrollbar-color: #3f3f46 transparent;
         }
     </style>
     <!-- Prevent FOUC across all browsers -->
