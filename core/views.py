@@ -213,6 +213,17 @@ def home(request):
     session_key = request.session.session_key
     profile = _ensure_profile(request.user) if request.user.is_authenticated else None
 
+    # Initialize chat system in session
+    chat_ids = request.session.get('chat_ids', [])
+    if not chat_ids:
+        chat_ids = [session_key]
+        request.session['chat_ids'] = chat_ids
+
+    current_chat_id = request.session.get('current_chat_id')
+    if not current_chat_id:
+        current_chat_id = session_key
+        request.session['current_chat_id'] = current_chat_id
+
     if request.method == "POST":
         prompt = request.POST.get("prompt", "").strip()
         uploaded_image = request.FILES.get("image")
@@ -227,22 +238,31 @@ def home(request):
                 response = format_prediction_for_chat(diagnosis)
                 if not prompt:
                     prompt = f"Uploaded image: {uploaded_image.name}"
-                ChatQuery.objects.create(session_key=session_key, prompt=prompt, response=response)
+                ChatQuery.objects.create(session_key=current_chat_id, prompt=prompt, response=response, image=uploaded_image)
                 logger.info(f"ChatQuery created successfully")
             except Exception as exc:
                 logger.error(f"Error processing image: {exc}", exc_info=True)
                 error_message = f"Error processing image: {str(exc)}"
-                ChatQuery.objects.create(session_key=session_key, prompt=f"Uploaded image: {uploaded_image.name}", response=error_message)
+                ChatQuery.objects.create(session_key=current_chat_id, prompt=f"Uploaded image: {uploaded_image.name}", response=error_message, image=uploaded_image)
                 messages.error(request, error_message)
         elif prompt:
             response = _build_response(prompt)
-            ChatQuery.objects.create(session_key=session_key, prompt=prompt, response=response)
-        else:
-            return redirect("home")
+            ChatQuery.objects.create(session_key=current_chat_id, prompt=prompt, response=response)
+        
         return redirect("home")
 
-    history = ChatQuery.objects.filter(session_key=session_key)
-    conversation = history.order_by("created_at")
+    # Load history (sidebar)
+    history = []
+    for cid in reversed(chat_ids):
+        first_msg = ChatQuery.objects.filter(session_key=cid).order_by("created_at").first()
+        if first_msg:
+            history.append({'id': cid, 'title': first_msg.prompt})
+        elif cid == current_chat_id:
+            # Current chat is empty, no need to show it in history or maybe show as 'New chat'
+            pass
+
+    # Load current conversation
+    conversation = ChatQuery.objects.filter(session_key=current_chat_id).order_by("created_at")
 
     return render(
         request,
@@ -251,8 +271,47 @@ def home(request):
             "history": history,
             "conversation": conversation,
             "profile": profile,
+            "current_chat_id": current_chat_id,
         },
     )
+
+def new_chat(request):
+    if not request.session.session_key:
+        request.session.create()
+    
+    new_id = secrets.token_hex(16)
+    chat_ids = request.session.get('chat_ids', [])
+    if new_id not in chat_ids:
+        chat_ids.append(new_id)
+        request.session['chat_ids'] = chat_ids
+    
+    request.session['current_chat_id'] = new_id
+    return redirect('home')
+
+def load_chat(request, chat_id):
+    chat_ids = request.session.get('chat_ids', [])
+    if chat_id in chat_ids:
+        request.session['current_chat_id'] = chat_id
+    return redirect('home')
+
+def delete_chat(request, chat_id):
+    if request.method == "POST":
+        chat_ids = request.session.get('chat_ids', [])
+        if chat_id in chat_ids:
+            chat_ids.remove(chat_id)
+            request.session['chat_ids'] = chat_ids
+            # Delete corresponding ChatQuery objects
+            ChatQuery.objects.filter(session_key=chat_id).delete()
+            
+            # If the deleted chat was the current one, switch to a new one or the first available
+            if request.session.get('current_chat_id') == chat_id:
+                if chat_ids:
+                    # Switch to the most recent chat if available
+                    request.session['current_chat_id'] = chat_ids[-1]
+                    return redirect('load_chat', chat_id=chat_ids[-1])
+                else:
+                    return redirect('new_chat')
+    return redirect('home')
 
 
 def login_view(request):

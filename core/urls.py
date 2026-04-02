@@ -3,6 +3,9 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('new-chat/', views.new_chat, name='new_chat'),
+    path('chat/<str:chat_id>/', views.load_chat, name='load_chat'),
+    path('delete-chat/<str:chat_id>/', views.delete_chat, name='delete_chat'),
     # Custom account routes to support email/phone login and signup
     path('auth/google/callback', views.google_callback_view, name='google_callback_legacy'),
     path('auth/google/callback/', views.google_callback_view),

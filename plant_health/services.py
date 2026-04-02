@@ -25,9 +25,33 @@ def _confidence_percent(score: float | None) -> str:
     return f"{round(float(score) * 100)}%"
 
 
+def _disease_stage_from_confidence(confidence: float | None) -> str:
+    if confidence is None:
+        return "unknown"
+    if confidence >= 0.80:
+        return "advanced"
+    if confidence >= 0.60:
+        return "mid"
+    return "early"
+
+
 def enrich_prediction(prediction: dict[str, Any]) -> dict[str, Any]:
     disease_code = prediction.get("disease_code")
     guidance = get_disease_guidance(disease_code)
+
+    disease_confidence = prediction.get("confidence")
+    disease_stage = _disease_stage_from_confidence(disease_confidence)
+
+    # copy original values to avoid mutation problems
+    prediction = {**prediction}
+    prediction.update(
+        {
+            "confidence_score": float(disease_confidence) if disease_confidence is not None else None,
+            "disease_type": prediction.get("disease", "unknown"),
+            "stage": disease_stage,
+            "pesticides": guidance.get("chemical_treatment", []),
+        }
+    )
 
     if prediction["status"] in {"ok", "uncertain"}:
         explanation = guidance.get(

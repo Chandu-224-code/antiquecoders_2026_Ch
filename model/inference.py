@@ -104,33 +104,31 @@ class PlantDiseasePredictor:
         if class_names is None:
             class_names = list(fallback_class_names)
 
-        # For disease model, try to create a compatible model
+        # For disease model, use architecture info from checkpoint if available
         if checkpoint_path.name == "best_model.pth":
-            # This is the wheat disease model with custom architecture
+            architecture = checkpoint.get("architecture", DEFAULT_ARCHITECTURE)
             try:
-                # Try to create a simple model that can work with the checkpoint
-                from torchvision.models import mobilenet_v2
-                model = mobilenet_v2(pretrained=False)
-                in_features = model.classifier[1].in_features
-                model.classifier[1] = torch.nn.Linear(in_features, len(class_names))
-
-                # Try loading with strict=False first
+                model = build_classifier(
+                    num_classes=len(class_names),
+                    architecture=architecture,
+                    pretrained=False,
+                )
                 try:
                     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-                    print("Warning: Loaded disease model with strict=False due to architecture differences")
+                    print("Warning: Loaded disease model with strict=False (checkpoint architecture may differ)")
                 except Exception as e:
-                    print(f"Warning: Could not load disease model state dict: {e}")
-                    print("Using untrained model for demonstration")
-
+                    print(f"Warning: Could not load disease model state dict exactly: {e}")
+                    print("Attempting strict=True load")
+                    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
             except Exception as e:
-                print(f"Error creating disease model: {e}")
-                # Fallback to a simple model
+                print(f"Error creating disease model with architecture {architecture}: {e}")
+                # Fallback to a simple Tiny ConvNet
                 model = torch.nn.Sequential(
                     torch.nn.Conv2d(3, 32, 3, padding=1),
                     torch.nn.ReLU(),
                     torch.nn.AdaptiveAvgPool2d((1, 1)),
                     torch.nn.Flatten(),
-                    torch.nn.Linear(32, len(class_names))
+                    torch.nn.Linear(32, len(class_names)),
                 )
         else:
             # For validation model, use the standard approach
@@ -201,6 +199,20 @@ class PlantDiseasePredictor:
             "resolution": {"width": width, "height": height},
         }
 
+    def _denoise_image(self, image: Image.Image) -> Image.Image:
+        """Apply kernel filters to remove Gaussian and salt-and-pepper/camera noise."""
+        img_array = np.array(image.convert("RGB"))
+        
+        # 1. Remove Gaussian Noise (smoothing)
+        # Using a 3x3 Gaussian kernel
+        img_array = cv2.GaussianBlur(img_array, (3, 3), 0)
+        
+        # 2. Remove Camera/Salt-and-Pepper Noise
+        # Using a 3x3 Median blur
+        img_array = cv2.medianBlur(img_array, 3)
+        
+        return Image.fromarray(img_array)
+
     def _prepare_tensor(self, image: Image.Image) -> torch.Tensor:
         return self.transform(image.convert("RGB")).unsqueeze(0).to(self.device)
 
@@ -244,7 +256,8 @@ class PlantDiseasePredictor:
                 ],
             }
 
-        image_tensor = self._prepare_tensor(image)
+        denoised_image = self._denoise_image(image)
+        image_tensor = self._prepare_tensor(denoised_image)
 
         validation_bundle = self._get_validation_bundle()
         validation_payload = {

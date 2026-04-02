@@ -568,6 +568,7 @@ def set_backbone_trainable(model: nn.Module, architecture: str, trainable: bool)
     head_prefixes = {
         "mobilenet_v2": ("classifier.",),
         "resnet18": ("fc.",),
+        "resnet34": ("fc.",),
     }
     prefixes = head_prefixes[architecture]
 

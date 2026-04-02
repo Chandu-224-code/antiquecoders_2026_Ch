@@ -35,6 +35,7 @@ class UserProfile(models.Model):
 class ChatQuery(models.Model):
     session_key = models.CharField(max_length=40, db_index=True)
     prompt = models.TextField()
+    image = models.ImageField(upload_to='chat_images/', blank=True, null=True)
     response = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

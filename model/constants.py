@@ -5,10 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-TRAINING_DIR = PROJECT_ROOT / "training"
-RAW_DATA_DIR = TRAINING_DIR / "data" / "raw"
+TRAINING_DIR = PROJECT_ROOT / "training" # Kept for retro compatibility if needed
 DATA_DIR = TRAINING_DIR / "data" / "processed"
-CHECKPOINT_DIR = TRAINING_DIR / "checkpoints"
+CHECKPOINT_DIR = PROJECT_ROOT / "models"
 ARTIFACTS_DIR = TRAINING_DIR / "artifacts"
 
 VALIDATION_DATA_DIR = DATA_DIR / "validation"
@@ -17,6 +16,7 @@ LEGACY_TRAIN_DIR = DATA_DIR / "train"
 LEGACY_VAL_DIR = DATA_DIR / "val"
 LEGACY_TEST_DIR = DATA_DIR / "test"
 
+RAW_DATA_DIR = TRAINING_DIR / "data" / "raw"
 RAW_GATE_DIR = RAW_DATA_DIR / "gate"
 RAW_VALIDATION_DIR = RAW_DATA_DIR / "validation"
 RAW_WHEAT_DATA_DIR = RAW_DATA_DIR / "wheat_disease"
@@ -50,7 +50,7 @@ DISPLAY_NAMES = {
 INPUT_SIZE = 224
 DEFAULT_TOP_K = 3
 DEFAULT_ARCHITECTURE = "mobilenet_v2"
-SUPPORTED_ARCHITECTURES = ("mobilenet_v2", "resnet18")
+SUPPORTED_ARCHITECTURES = ("mobilenet_v2", "resnet18", "resnet34")
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
