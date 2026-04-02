@@ -35,6 +35,17 @@ def _disease_stage_from_confidence(confidence: float | None) -> str:
     return "early"
 
 
+def _risk_color_from_stage(stage: str) -> str:
+    normalized = (stage or "").lower()
+    return {
+        "advanced": "red",
+        "mid": "orange",
+        "early": "yellow",
+        "healthy": "green",
+        "unknown": "gray",
+    }.get(normalized, "gray")
+
+
 def enrich_prediction(prediction: dict[str, Any]) -> dict[str, Any]:
     disease_code = prediction.get("disease_code")
     guidance = get_disease_guidance(disease_code)
@@ -42,14 +53,23 @@ def enrich_prediction(prediction: dict[str, Any]) -> dict[str, Any]:
     disease_confidence = prediction.get("confidence")
     disease_stage = _disease_stage_from_confidence(disease_confidence)
 
+    if disease_code and disease_code.lower() == "healthy":
+        disease_stage = "healthy"
+
+    risk_color = _risk_color_from_stage(disease_stage)
+
     # copy original values to avoid mutation problems
     prediction = {**prediction}
     prediction.update(
         {
             "confidence_score": float(disease_confidence) if disease_confidence is not None else None,
             "disease_type": prediction.get("disease", "unknown"),
-            "stage": disease_stage,
-            "pesticides": guidance.get("chemical_treatment", []),
+            "risk_stage": disease_stage,
+            "risk_color": risk_color,
+            "pesticides": {
+                "organic": guidance.get("organic_treatment", []),
+                "fertilizers": guidance.get("chemical_treatment", []),
+            },
         }
     )
 
@@ -128,29 +148,49 @@ def format_prediction_for_chat(prediction: dict[str, Any]) -> str:
         suggestion_text = " ".join(suggestions[:2])
         return f"Please upload a clearer image. {reason} {suggestion_text}".strip()
 
-    top_predictions = prediction.get("top_predictions", [])
-    alternatives = ", ".join(
-        f"{item['label']} ({_confidence_percent(item['score'])})"
-        for item in top_predictions[1:3]
+    disease = prediction.get("disease", "Unknown")
+    confidence_score = prediction.get("confidence_score")
+    confidence_text = (
+        f"{round(float(confidence_score) * 100)}%" if confidence_score is not None else "Unknown"
     )
+    risk_stage = prediction.get("risk_stage", "unknown")
+    risk_color = prediction.get("risk_color", "gray")
 
-    message = (
-        f"Diagnosis: {prediction.get('disease', 'Unknown')} "
-        f"with confidence {prediction.get('confidence_percent', 'Unknown')}. "
-        f"{prediction.get('explanation', '')}"
-    )
+    pesticides = prediction.get("pesticides", {})
+    organic = pesticides.get("organic", [])
+    fertilizers = pesticides.get("fertilizers", [])
+
+    text_lines = [
+        "=== Disease ===",
+        f"Disease: {disease}",
+        "",
+        "=== Confidence ===",
+        f"Confidence score: {confidence_text}",
+        "",
+        "=== Risk ===",
+        f"Risk stage: {risk_stage}",
+        f"Risk color: {risk_color}",
+        "",
+        "=== Pesticides (treatments) ===",
+        f"Organic: {', '.join(organic) if organic else 'No organic recommendations available.'}",
+        f"Fertilizers/Chemical: {', '.join(fertilizers) if fertilizers else 'No fertilizer/chemical recommendations available.'}",
+    ]
 
     if status == "uncertain":
-        message += " The model is not fully confident, so please retake the image in daylight if possible."
+        text_lines.append(
+            "Note: The model is not fully confident, please retake the image in daylight if possible."
+        )
 
+    alternatives = ", ".join(
+        f"{item['label']} ({_confidence_percent(item['score'])})"
+        for item in prediction.get("top_predictions", [])[1:3]
+    )
     if alternatives:
-        message += f" Other likely options: {alternatives}."
+        text_lines.append(f"Other likely options: {alternatives}.")
 
-    organic = prediction.get("organic_treatment", [])
-    chemical = prediction.get("chemical_treatment", [])
-    if organic:
-        message += f" Organic option: {organic[0]}."
-    if chemical:
-        message += f" Chemical option: {chemical[0]}."
+    explanation = prediction.get("explanation")
+    if explanation:
+        text_lines.append(f"Explanation: {explanation}")
 
-    return message.strip()
+    return "\n".join(text_lines)
+
